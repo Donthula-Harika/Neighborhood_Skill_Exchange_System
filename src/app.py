@@ -32,25 +32,6 @@ def register_ui():
         except Exception as e:
             st.error(f"Registration error: {e}")
 
-# def login_ui():
-#     st.subheader("Login")
-#     email = st.text_input("Email", key="login_email")
-#     password = st.text_input("Password", type="password", key="login_pass")
-#     if st.button("Login"):
-#         user = user_service.login_user(email, password)
-#         if user:
-#             st.session_state.current_user = user
-#             st.success(f"Welcome, {user['name']}!")
-#             st.experimental_rerun()  # Immediately update UI
-#         else:
-#             st.error("Invalid email or password.")
-
-# def logout_ui():
-#     if st.button("Logout"):
-#         st.session_state.current_user = None
-#         st.success("Logged out successfully!")
-#         st.experimental_rerun()  # Immediately update UI
-
 
 
 def login_ui():
@@ -145,7 +126,19 @@ def respond_exchange_ui():
         st.info("No pending exchanges.")
         return
 
-    ex_idx = st.selectbox("Select exchange to respond", range(len(pending)), format_func=lambda i: f"ID {pending[i]['exchange_id']}: {pending[i]['skill_requested']}", key="resp_ex")
+    # 👇 Show detailed info like in CLI
+    def format_exchange(i):
+        ex = pending[i]
+        return (f"ID {ex['exchange_id']} | "
+                f"Requested Skill: {ex['skill_requested']} | "
+                f"Offered Skill (from requester): {ex['skill_offered']}")
+
+    ex_idx = st.selectbox(
+        "Select exchange to respond",
+        range(len(pending)),
+        format_func=format_exchange,
+        key="resp_ex"
+    )
     exchange = pending[ex_idx]
 
     # Your offered skills
@@ -153,6 +146,7 @@ def respond_exchange_ui():
     if not my_skills:
         st.info("No skills to offer.")
         return
+
     skill_idx = st.selectbox("Select skill to offer", range(len(my_skills)), format_func=lambda i: my_skills[i]['skill_name'], key="resp_skill")
     skill_offered = my_skills[skill_idx]['skill_name']
 
@@ -165,18 +159,53 @@ def respond_exchange_ui():
         except Exception as e:
             st.error(f"Error: {e}")
 
+
 def complete_exchange_ui():
     st.subheader("Complete Exchanges")
+    
+    # Fetch all exchanges involving current user
     exchanges = exchange_service.get_exchanges_for_user(st.session_state.current_user['user_id'])
-    accepted = [ex for ex in exchanges if ex['status']=="Accepted"]
+    
+    # Only those that are accepted
+    accepted = [ex for ex in exchanges if ex['status'] == "Accepted"]
+    
     if not accepted:
         st.info("No accepted exchanges.")
         return
-    ex_idx = st.selectbox("Select exchange to complete", range(len(accepted)), format_func=lambda i: f"ID {accepted[i]['exchange_id']}", key="comp_ex")
+
+    # Helper function to format display
+    def format_exchange(i):
+        ex = accepted[i]
+        # Get requester info
+        requester = user_service.get_user_by_id(ex['requester_id'])
+        requester_name = requester['name'] if requester else "Unknown"
+        return (f"ID {ex['exchange_id']} – Requester: {requester_name} | "
+                f"Requested: {ex['skill_requested']} | Offered: {ex.get('skill_offered', 'Not offered yet')}")
+    
+    ex_idx = st.selectbox(
+        "Select exchange to complete",
+        range(len(accepted)),
+        format_func=format_exchange,
+        key="complete_ex"
+    )
+    
     exchange = accepted[ex_idx]
-    if st.button("Mark Completed", key="comp_btn"):
-        exchange_service.complete_exchange(exchange['exchange_id'])
-        st.success("Exchange marked as Completed!")
+
+    st.write("### Exchange Details")
+    st.write(f"**ID:** {exchange['exchange_id']}")
+    requester = user_service.get_user_by_id(exchange['requester_id'])
+    st.write(f"**Requester:** {requester['name'] if requester else 'Unknown'}")
+    st.write(f"**Requested Skill:** {exchange['skill_requested']}")
+    st.write(f"**Offered Skill:** {exchange.get('skill_offered', 'Not offered yet')}")
+
+    if st.button("Mark as Completed", key="comp_btn"):
+        try:
+            exchange_service.complete_exchange(exchange['exchange_id'])
+            st.success("Exchange marked as Completed!")
+        except Exception as e:
+            st.error(f"Error completing exchange: {e}")
+
+
 
 def add_feedback_ui():
     st.subheader("Add Feedback")
@@ -202,6 +231,8 @@ def view_feedback_ui():
         return
     for f in feedbacks:
         st.write(f"From user {f['user_id']}: Rating {f['rating']}, Comments: {f['comments']}")
+
+
 
 # ------------------ MAIN APP ---------------- #
 
