@@ -1,0 +1,44 @@
+# venv/
+# __pycache__/
+# *.pyc
+# *.pyo
+# *.pyd
+# .vscode/
+# *.idea/
+
+# # This tells Git: “Ignore the venv folder and these other temporary/IDE files
+
+
+# Virtual environment
+venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDE / editor settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Streamlit temp files
+.streamlit/
+
+
+.env
