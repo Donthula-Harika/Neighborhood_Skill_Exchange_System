@@ -233,6 +233,74 @@ def view_feedback_ui():
         st.write(f"From user {f['user_id']}: Rating {f['rating']}, Comments: {f['comments']}")
 
 
+def browse_skills_ui():
+    st.subheader("Browse Skills by Category → Request Exchange")
+
+    # List all categories
+    categories = skill_service.list_categories()
+    if not categories:
+        st.info("No skill categories available.")
+        return
+
+    category_idx = st.selectbox(
+        "Select a category",
+        range(len(categories)),
+        format_func=lambda i: categories[i],
+        key="browse_cat"
+    )
+    selected_category = categories[category_idx]
+
+    #  Show all offered skills in this category (excluding current user's skills)
+    skills_in_category = skill_service.get_skills_by_category(selected_category)
+    available_skills = [s for s in skills_in_category if s["user_id"] != st.session_state.current_user["user_id"] and s["skill_type"] == "Offer"]
+
+    if not available_skills:
+        st.info(f"No skills available in '{selected_category}'.")
+        return
+
+    skill_idx = st.selectbox(
+        "Select a skill to request",
+        range(len(available_skills)),
+        format_func=lambda i: f"{available_skills[i]['skill_name']} (by User ID: {available_skills[i]['user_id']})",
+        key="browse_skill"
+    )
+    selected_skill = available_skills[skill_idx]
+
+    #  Show current user's offered skills to offer in exchange
+    my_offered_skills = [s for s in skill_service.view_skills(st.session_state.current_user["user_id"]) if s["skill_type"] == "Offer"]
+    if not my_offered_skills:
+        st.info("You have no skills to offer for exchange. Please add some first.")
+        return
+
+    my_skill_idx = st.selectbox(
+        "Select your skill to offer in exchange",
+        range(len(my_offered_skills)),
+        format_func=lambda i: my_offered_skills[i]["skill_name"],
+        key="browse_my_skill"
+    )
+    my_skill_to_offer = my_offered_skills[my_skill_idx]
+
+    #  Optional scheduled time
+    scheduled_time = st.text_input(
+        "Scheduled time (YYYY-MM-DD HH:MM, optional)",
+        key="browse_sch_time"
+    )
+
+    # Button to send exchange request
+    if st.button("Request Exchange", key="browse_req_btn"):
+        try:
+            exchange = exchange_service.request_exchange(
+                st.session_state.current_user["user_id"],
+                selected_skill["user_id"],
+                my_skill_to_offer["skill_name"],
+                selected_skill["skill_name"],
+                scheduled_time.strip() if scheduled_time.strip() else None
+            )
+            st.success(f"Exchange request created successfully! ID: {exchange.get('exchange_id')}")
+        except Exception as e:
+            st.error(f"Error creating exchange: {e}")
+
+
 
 # ------------------ MAIN APP ---------------- #
 
@@ -248,7 +316,12 @@ def main():
         elif tab=="Login":
             login_ui()
     else:
-        tabs = ["Add Skill", "View Skills", "Request Exchange", "Respond Exchange", "Complete Exchange", "Add Feedback", "View Feedback", "Logout"]
+        # tabs = ["Add Skill", "View Skills", "Request Exchange", "Respond Exchange", "Complete Exchange", "Add Feedback", "View Feedback", "Logout"]
+        tabs = [
+            "Add Skill", "View Skills", "Request Exchange", "Respond Exchange",
+            "Complete Exchange", "Add Feedback", "View Feedback",
+            "Browse Skills", "Logout"  
+        ]
         choice = st.selectbox("Select Tab", tabs, key="main_tabs")
         if choice=="Add Skill":
             add_skill_ui()
@@ -264,6 +337,8 @@ def main():
             add_feedback_ui()
         elif choice=="View Feedback":
             view_feedback_ui()
+        elif choice == "Browse Skills":
+            browse_skills_ui()
         elif choice=="Logout":
             logout_ui()
 
